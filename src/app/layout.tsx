@@ -49,6 +49,14 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     keywords: store?.seoData?.seo?.keywords,
+    icons: {
+      icon: [
+        { url: "/icon.svg", type: "image/svg+xml" },
+        { url: "/favicon.ico", sizes: "32x32" },
+      ],
+      shortcut: "/icon.svg",
+      apple: "/icon.svg",
+    },
     openGraph: {
       title: store?.seoData?.social?.ogTitle || title,
       description: store?.seoData?.social?.ogDescription || description,
