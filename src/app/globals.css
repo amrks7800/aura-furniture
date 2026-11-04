@@ -287,6 +287,7 @@ html[dir="rtl"] body,
   overflow-x: auto;
   padding: 12px 0px;
 }
+.cat-nav a,
 .cat-nav button,
 .cat-nav span {
   font-size: 11px;
@@ -296,8 +297,14 @@ html[dir="rtl"] body,
   color: rgba(26, 26, 26, 0.7);
   transition: color 0.2s;
 }
+.cat-nav a:hover,
 .cat-nav button:hover {
   color: var(--primary);
+}
+.cat-nav a.is-active,
+.cat-nav button.is-active {
+  color: var(--primary);
+  font-weight: 600;
 }
 .cat-nav .deliver {
   margin-left: auto;

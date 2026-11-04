@@ -12,13 +12,15 @@ interface NavbarProps {
   categories: Category[];
 }
 
-const ROOM_NAV_ITEMS: { label: string; categoryId: string }[] = [
-  { label: "Living Room", categoryId: "living-room" },
-  { label: "Dining Room", categoryId: "dining-room" },
-  { label: "Bedroom", categoryId: "bedroom" },
-  { label: "Storage unit", categoryId: "storage-unit" },
-  { label: "Kitchen Room", categoryId: "kitchen-room" },
-  { label: "All Catalog", categoryId: "ALL" },
+const MAIN_NAV_LINKS: { label: string; href: string }[] = [
+  { label: "Home", href: "/" },
+  { label: "All Products", href: "/products" },
+  { label: "Living Room", href: "/rooms/living-room" },
+  { label: "Bedroom", href: "/rooms/bedroom" },
+  { label: "Dining Room", href: "/rooms/dining-room" },
+  { label: "Kitchen Room", href: "/rooms/kitchen-room" },
+  { label: "Storage", href: "/rooms/storage-unit" },
+  { label: "Showroom", href: "/showroom" },
 ];
 
 export function Navbar({ store: _store, categories }: NavbarProps) {
@@ -30,11 +32,6 @@ export function Navbar({ store: _store, categories }: NavbarProps) {
     wishlist,
     searchQuery,
     setSearchQuery,
-    selectedCategory,
-    selectCategoryAndScroll,
-    onlyWishlist,
-    setOnlyWishlist,
-    setCurrentPage,
   } = useStore();
 
   const pathname = usePathname();
@@ -42,48 +39,11 @@ export function Navbar({ store: _store, categories }: NavbarProps) {
   const [showTopbar, setShowTopbar] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleRoomClick = (categoryId: string) => {
-    setMobileMenuOpen(false);
-    if (pathname === "/products") {
-      selectCategoryAndScroll(categoryId);
-      router.replace(
-        categoryId && categoryId !== "ALL"
-          ? `/products?category=${encodeURIComponent(categoryId)}`
-          : "/products",
-        { scroll: false }
-      );
-      return;
-    }
-    if (pathname !== "/") {
-      router.push(
-        categoryId && categoryId !== "ALL"
-          ? `/products?category=${encodeURIComponent(categoryId)}`
-          : "/products"
-      );
-      return;
-    }
-    selectCategoryAndScroll(categoryId);
-  };
-
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pathname !== "/") {
-      router.push("/#catalog");
-      return;
+    if (pathname !== "/products" && !pathname.startsWith("/rooms/")) {
+      router.push("/products");
     }
-    const el = document.getElementById("catalog");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const handleWishlistClick = () => {
-    setOnlyWishlist((prev) => !prev);
-    setCurrentPage(1);
-    if (pathname !== "/") {
-      router.push("/#catalog");
-      return;
-    }
-    const el = document.getElementById("catalog");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -174,7 +134,7 @@ export function Navbar({ store: _store, categories }: NavbarProps) {
                   <path d="m21 21-4.3-4.3" />
                 </svg>
                 <input
-                  placeholder="Search furniture, sellers and categories…"
+                  placeholder="Search furniture, rooms and categories…"
                   aria-label="Search products"
                   type="search"
                   value={searchQuery}
@@ -219,23 +179,20 @@ export function Navbar({ store: _store, categories }: NavbarProps) {
                 {locale === "ar" ? "EN" : "AR"}
               </button>
 
-              <button
+              <Link
+                href="/wishlist"
                 className="icon-btn"
-                type="button"
                 aria-label="Wishlist"
-                onClick={handleWishlistClick}
                 title="Saved pieces"
                 style={
-                  onlyWishlist
-                    ? { color: "#e11d48" }
-                    : undefined
+                  pathname === "/wishlist" ? { color: "#e11d48" } : undefined
                 }
               >
                 <svg
                   width="20"
                   height="20"
                   viewBox="0 0 24 24"
-                  fill={onlyWishlist ? "currentColor" : "none"}
+                  fill={pathname === "/wishlist" ? "currentColor" : "none"}
                   stroke="currentColor"
                   strokeWidth="1.6"
                   strokeLinecap="round"
@@ -246,7 +203,7 @@ export function Navbar({ store: _store, categories }: NavbarProps) {
                 {wishlist.length > 0 && (
                   <span className="wish-badge">{wishlist.length}</span>
                 )}
-              </button>
+              </Link>
 
               <button
                 className="icon-btn"
@@ -291,7 +248,7 @@ export function Navbar({ store: _store, categories }: NavbarProps) {
                   <path d="m21 21-4.3-4.3" />
                 </svg>
                 <input
-                  placeholder="Search furniture, sellers and categories…"
+                  placeholder="Search furniture, rooms and categories…"
                   aria-label="Search products"
                   type="search"
                   value={searchQuery}
@@ -301,33 +258,25 @@ export function Navbar({ store: _store, categories }: NavbarProps) {
             </form>
           </div>
 
-          <nav className="cat-nav" aria-label="Shop by room">
+          <nav className="cat-nav" aria-label="Main site navigation">
             <ul className="no-scrollbar">
-              {ROOM_NAV_ITEMS.map((item) => (
-                <li key={item.categoryId}>
-                  <button
-                    type="button"
-                    className={
-                      selectedCategory === item.categoryId ? "is-active" : ""
-                    }
-                    onClick={() => handleRoomClick(item.categoryId)}
-                  >
-                    {item.label}
-                  </button>
-                </li>
-              ))}
-              <li>
-                <Link
-                  href="/products"
-                  className={`text-xs uppercase tracking-[0.18em] py-1.5 inline-block transition-colors ${
-                    pathname === "/products"
-                      ? "text-[var(--primary)] font-medium"
-                      : "text-[var(--muted-fg)] hover:text-[var(--fg)]"
-                  }`}
-                >
-                  Products Page
-                </Link>
-              </li>
+              {MAIN_NAV_LINKS.map((item) => {
+                const isActive =
+                  item.href === "/"
+                    ? pathname === "/"
+                    : pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className={isActive ? "is-active" : ""}
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
               <li className="ml-auto flex items-center gap-4">
                 <span className="deliver">Deliver to Egypt</span>
               </li>
@@ -341,10 +290,7 @@ export function Navbar({ store: _store, categories }: NavbarProps) {
           className="drawer-overlay"
           onClick={() => setMobileMenuOpen(false)}
         >
-          <div
-            className="drawer"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="drawer" onClick={(e) => e.stopPropagation()}>
             <div className="drawer-head">
               <span className="logo">Aura furniture</span>
               <button
@@ -367,13 +313,14 @@ export function Navbar({ store: _store, categories }: NavbarProps) {
               </button>
             </div>
             <div className="drawer-body">
-              <p className="eyebrow">Shop by room</p>
+              <p className="eyebrow">Pages &amp; Rooms</p>
               <ul>
-                {ROOM_NAV_ITEMS.map((item) => (
-                  <li key={item.categoryId}>
-                    <button
-                      type="button"
-                      onClick={() => handleRoomClick(item.categoryId)}
+                {MAIN_NAV_LINKS.map((item) => (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center justify-between py-2.5 text-sm"
                     >
                       <span>{item.label}</span>
                       <svg
@@ -386,20 +333,42 @@ export function Navbar({ store: _store, categories }: NavbarProps) {
                       >
                         <path d="m9 18 6-6-6-6" />
                       </svg>
-                    </button>
+                    </Link>
                   </li>
                 ))}
+                <li>
+                  <Link
+                    href="/wishlist"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between py-2.5 text-sm"
+                  >
+                    <span>Saved Pieces ({wishlist.length})</span>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </Link>
+                </li>
               </ul>
 
               {categories.length > 0 && (
                 <>
-                  <p className="eyebrow mt-6">Categories</p>
+                  <p className="eyebrow mt-6">Browse by Furniture Type</p>
                   <ul>
                     {categories.slice(0, 14).map((cat) => (
                       <li key={cat.id}>
-                        <button
-                          type="button"
-                          onClick={() => handleRoomClick(cat.id)}
+                        <Link
+                          href={`/products?category=${encodeURIComponent(
+                            cat.id
+                          )}`}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center justify-between py-2 text-sm"
                         >
                           <span>{cat.name}</span>
                           {cat.productsCount ? (
@@ -407,7 +376,7 @@ export function Navbar({ store: _store, categories }: NavbarProps) {
                               ({cat.productsCount})
                             </span>
                           ) : null}
-                        </button>
+                        </Link>
                       </li>
                     ))}
                   </ul>

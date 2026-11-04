@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { useStore } from "@/context/StoreContext";
+import Link from "next/link";
 import type { AuraStoreInfo } from "@/lib/vondera";
 import type { Category } from "vondera-sdk";
 
@@ -13,18 +12,6 @@ export function Footer({
   store: AuraStoreInfo | null;
   categories: Category[];
 }) {
-  const { selectCategoryAndScroll } = useStore();
-  const pathname = usePathname();
-  const router = useRouter();
-
-  const handleCategoryClick = (categoryId: string) => {
-    if (pathname !== "/") {
-      router.push(`/?category=${encodeURIComponent(categoryId)}#catalog`);
-      return;
-    }
-    selectCategoryAndScroll(categoryId);
-  };
-
   return (
     <footer className="site-footer" id="footer-contacts">
       <div className="wrap">
@@ -39,91 +26,46 @@ export function Footer({
             </div>
 
             <div className="footer-shop">
-              <h3>Shop</h3>
+              <h3>Rooms</h3>
               <ul>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick("living-room")}
-                  >
-                    Living
-                  </button>
+                  <Link href="/rooms/living-room">Living Room</Link>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick("bedroom")}
-                  >
-                    Bedroom
-                  </button>
+                  <Link href="/rooms/bedroom">Bedroom</Link>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick("dining-room")}
-                  >
-                    Dining
-                  </button>
+                  <Link href="/rooms/dining-room">Dining Room</Link>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick("tv-table")}
-                  >
-                    TV &amp; Media
-                  </button>
+                  <Link href="/rooms/kitchen-room">Kitchen Room</Link>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick("storage-unit")}
-                  >
-                    Storage
-                  </button>
+                  <Link href="/rooms/storage-unit">Storage &amp; Units</Link>
                 </li>
               </ul>
             </div>
 
             <div className="footer-explore">
-              <h3>Discover</h3>
+              <h3>Explore</h3>
               <ul>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick("ALL")}
-                  >
-                    Furniture
-                  </button>
+                  <Link href="/products">All 447 Products</Link>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick("living-room")}
-                  >
-                    Living Room
-                  </button>
+                  <Link href="/products?category=sofa">Sofas &amp; Seating</Link>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick("bedroom")}
-                  >
-                    Bedroom
-                  </button>
+                  <Link href="/products?category=wardrobe">Wardrobes</Link>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick("dining-room")}
-                  >
-                    Dining
-                  </button>
+                  <Link href="/products?category=tv-table">TV &amp; Media</Link>
                 </li>
                 <li>
-                  <a href="#sellers">Our sellers</a>
+                  <Link href="/wishlist">Saved Pieces</Link>
                 </li>
                 <li>
-                  <a href="#service">Delivery &amp; returns</a>
+                  <Link href="/showroom">Showroom &amp; Delivery</Link>
                 </li>
               </ul>
             </div>
@@ -136,6 +78,14 @@ export function Footer({
                 By appointment
                 <br />
                 11–20 daily
+              </p>
+              <p className="mt-3">
+                <Link
+                  href="/showroom"
+                  className="text-xs uppercase tracking-widest underline"
+                >
+                  Showroom details →
+                </Link>
               </p>
             </div>
           </div>
