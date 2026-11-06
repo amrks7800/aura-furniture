@@ -3,8 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/context/StoreContext";
-import { ShowcaseCarouselBlock } from "@/components/ShowcaseCarousel";
-import { HOMEPAGE_SHOWCASE_ROWS } from "@/data/homepage-showcase";
+import { ProductCard } from "@/components/ProductCard";
 import type { AuraProduct, AuraStoreInfo } from "@/lib/vondera";
 import type { Category } from "vondera-sdk";
 
@@ -136,8 +135,15 @@ export function CatalogClient({
     });
   };
 
-  const row1 = HOMEPAGE_SHOWCASE_ROWS[0];
-  const row2 = HOMEPAGE_SHOWCASE_ROWS[1];
+  const featuredProducts = products.filter((p) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      p.name?.toLowerCase().includes(q) ||
+      p.nameAr?.toLowerCase().includes(q) ||
+      p.categoryName?.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <main>
@@ -355,21 +361,41 @@ export function CatalogClient({
         </div>
       </section>
 
-      {/* 4. FEATURED CURATED CAROUSELS (SPECIAL PIECES & BEST SELLERS) */}
+      {/* 4. LIVE FEATURED PIECES FROM VONDERA */}
       <section
         className="seller-section"
         id="sellers"
-        aria-label="Special pieces and best sellers"
+        aria-label="Featured pieces"
       >
         <div className="wrap">
-          <div className="mp-rows">
-            {row1 && (
-              <ShowcaseCarouselBlock row={row1} searchQuery={searchQuery} />
-            )}
-            {row2 && (
-              <ShowcaseCarouselBlock row={row2} searchQuery={searchQuery} />
-            )}
+          <div className="section-head mb-6">
+            <div>
+              <p className="eyebrow">Live Collection</p>
+              <h2 className="display-title mt-1">Featured Pieces</h2>
+              <p className="mt-1 text-sm text-[var(--muted-fg)]">
+                {products.length} published{" "}
+                {products.length === 1 ? "piece" : "pieces"} available in store
+              </p>
+            </div>
+            <Link href="/products" className="chip">
+              View All ({products.length}) →
+            </Link>
           </div>
+
+          {featuredProducts.length === 0 ? (
+            <div className="empty-state">
+              <p>
+                No published products match your search, or products in Vondera
+                are currently in Draft status.
+              </p>
+            </div>
+          ) : (
+            <div className="mp-expanded-grid">
+              {featuredProducts.slice(0, 12).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
 
           {/* Dedicated Catalog Callout Banner */}
           <div

@@ -6,8 +6,6 @@ import {
   type VariantSetting,
 } from "vondera-sdk";
 
-import catalogData from "@/data/catalog-products.json";
-import { HOMEPAGE_SHOWCASE_ROWS } from "@/data/homepage-showcase";
 import {
   EGYPT_GOVERNORATES,
   formatEGP,
@@ -337,43 +335,77 @@ export function createVonderaClient(userId = "aura-storefront-guest") {
 
 export const vonderaClient = createVonderaClient();
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
-let cachedStoreInfo: { data: AuraStoreInfo | null; expiresAt: number } | null =
-  null;
-let cachedLiveProducts: { data: AuraProduct[]; expiresAt: number } | null =
-  null;
+const PUBLIC_API_BASE =
+  process.env.VONDERA_API_BASE ||
+  "https://production.api.vondera.app/api/public";
+
+async function vonderaPublicGet<T = unknown>(endpoint: string): Promise<T | null> {
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${PUBLIC_API_BASE}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": API_KEY,
+      userid: "aura-storefront-live",
+      "x-store-domain": STORE_DOMAIN,
+      "x-country": "EG",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+  const json = (await res.json()) as { data?: T } | null;
+  return json && "data" in json ? (json.data ?? null) : (json as T | null);
+}
 
 export async function getStoreInfo(): Promise<AuraStoreInfo | null> {
-  if (cachedStoreInfo && Date.now() < cachedStoreInfo.expiresAt) {
-    return cachedStoreInfo.data;
-  }
   try {
-    const res = await vonderaClient.http.get("/store");
-    const data = (res.data?.data as AuraStoreInfo) ?? null;
-    cachedStoreInfo = { data, expiresAt: Date.now() + CACHE_TTL_MS };
-    return data;
+    return await vonderaPublicGet<AuraStoreInfo>("/store");
   } catch (err) {
     console.error("Failed to fetch Vondera store info:", err);
-    return cachedStoreInfo?.data ?? null;
+    return null;
   }
 }
 
-const localProducts: AuraProduct[] = catalogData as unknown as AuraProduct[];
-
 async function getLiveVonderaProducts(): Promise<AuraProduct[]> {
-  if (cachedLiveProducts && Date.now() < cachedLiveProducts.expiresAt) {
-    return cachedLiveProducts.data;
-  }
   try {
-    const res = await vonderaClient.products.list({ pageNo: 1, limit: 100 });
-    const items = Array.isArray(res.data?.items)
-      ? (res.data.items as AuraProduct[])
-      : [];
-    cachedLiveProducts = { data: items, expiresAt: Date.now() + CACHE_TTL_MS };
-    return items;
+    const firstPage = await vonderaPublicGet<{
+      items?: AuraProduct[];
+      totalPages?: number;
+      isLastPage?: boolean;
+    }>("/products?pageNo=1&limit=100");
+
+    if (!firstPage || !Array.isArray(firstPage.items)) {
+      return [];
+    }
+
+    const allItems: AuraProduct[] = [...firstPage.items];
+    const totalPages = Math.min(Number(firstPage.totalPages || 1), 25);
+
+    if (totalPages > 1 && !firstPage.isLastPage) {
+      const pagePromises: Promise<{ items?: AuraProduct[] } | null>[] = [];
+      for (let page = 2; page <= totalPages; page++) {
+        pagePromises.push(
+          vonderaPublicGet<{ items?: AuraProduct[] }>(
+            `/products?pageNo=${page}&limit=100`
+          )
+        );
+      }
+      const otherPages = await Promise.all(pagePromises);
+      for (const p of otherPages) {
+        if (p && Array.isArray(p.items)) {
+          allItems.push(...p.items);
+        }
+      }
+    }
+
+    return allItems;
   } catch (err) {
-    console.error("Vondera live products fetch note:", err);
-    return cachedLiveProducts?.data ?? [];
+    console.error("Vondera live products fetch error:", err);
+    return [];
   }
 }
 
@@ -385,15 +417,19 @@ export async function getMergedCatalogProducts(): Promise<AuraProduct[]> {
   for (const raw of liveItems) {
     if (!raw || !raw.id || seenIds.has(raw.id)) continue;
     seenIds.add(raw.id);
-    // Normalize Vondera's generic category name ("More Than Just Great Furniture") into "Wardrobe" or keep its specific category
+
     const rawCatName = (raw.categoryName || "").trim();
+    const rawSubName = (raw.subCategoryName || "").trim();
     const isGenericVonderaCat =
       !rawCatName ||
       rawCatName.toLowerCase() === "more than just great furniture";
-    const normalizedCatName = isGenericVonderaCat ? "Wardrobe" : rawCatName;
-    const normalizedCatId = isGenericVonderaCat
-      ? "wardrobe"
-      : slugifyCategory(normalizedCatName);
+
+    const normalizedCatName = isGenericVonderaCat
+      ? rawSubName || "Furniture"
+      : rawCatName;
+    const normalizedCatId = slugifyCategory(
+      rawSubName || normalizedCatName || raw.categoryId || "furniture"
+    );
 
     combined.push({
       ...raw,
@@ -402,27 +438,39 @@ export async function getMergedCatalogProducts(): Promise<AuraProduct[]> {
     });
   }
 
-  for (const p of localProducts) {
-    if (!p || !p.id || seenIds.has(p.id)) continue;
-    seenIds.add(p.id);
-    const catName = (p.categoryName || "General").trim();
-    const catId = p.categoryId || slugifyCategory(catName);
-    combined.push({
-      ...p,
-      categoryName: catName,
-      categoryId: catId,
-    });
-  }
-
   return combined;
 }
 
 export async function getCategories(): Promise<Category[]> {
-  const allProducts = await getMergedCatalogProducts();
+  const [liveCategories, allProducts] = await Promise.all([
+    vonderaPublicGet<Category[]>("/category").catch(() => null),
+    getMergedCatalogProducts(),
+  ]);
+
   const catMap = new Map<
     string,
-    { id: string; name: string; count: number; image?: string }
+    {
+      id: string;
+      name: string;
+      count: number;
+      image?: string;
+      subCategories?: Category["subCategories"];
+    }
   >();
+
+  if (Array.isArray(liveCategories)) {
+    for (const c of liveCategories) {
+      if (!c || !c.name) continue;
+      const cId = slugifyCategory(c.name || c.id);
+      catMap.set(cId, {
+        id: cId,
+        name: c.name,
+        count: 0,
+        image: c.image,
+        subCategories: c.subCategories || [],
+      });
+    }
+  }
 
   for (const p of allProducts) {
     const cName = (p.categoryName || "General").trim();
@@ -432,6 +480,7 @@ export async function getCategories(): Promise<Category[]> {
       name: cName,
       count: 0,
       image: undefined,
+      subCategories: [],
     };
     existing.count++;
     if (!existing.image) {
@@ -448,9 +497,9 @@ export async function getCategories(): Promise<Category[]> {
       name: item.name,
       description: `${item.name} Collection by Aura Furniture`,
       image: item.image,
-      link: `/?category=${encodeURIComponent(item.id)}#catalog`,
+      link: `/products?category=${encodeURIComponent(item.id)}`,
       productsCount: item.count,
-      subCategories: [],
+      subCategories: item.subCategories || [],
     }));
 }
 
@@ -529,6 +578,8 @@ export async function getProducts(
       crossedPrice: p.crossedPrice,
       categoryId: p.categoryId,
       categoryName: p.categoryName,
+      subCategoryId: p.subCategoryId,
+      subCategoryName: p.subCategoryName,
       isAvailable: p.isAvailable,
       mainImage: p.mainImage,
       labels: p.labels,
@@ -546,13 +597,12 @@ export async function getProducts(
 
 export async function getFeaturedProducts(limit = 6): Promise<AuraProduct[]> {
   try {
-    const res = await vonderaClient.products.featured();
-    const data = res.data;
-    if (Array.isArray(data) && data.length >= limit) {
-      return data.slice(0, limit) as AuraProduct[];
+    const data = await vonderaPublicGet<AuraProduct[]>("/products/featured");
+    if (Array.isArray(data) && data.length > 0) {
+      return data.slice(0, limit);
     }
   } catch {
-    // Fallback
+    // Fallback to live products
   }
 
   const fallback = await getProducts({ pageNo: 1, limit });
@@ -562,77 +612,59 @@ export async function getFeaturedProducts(limit = 6): Promise<AuraProduct[]> {
 export async function getProductById(
   id: string
 ): Promise<AuraProductDetail | null> {
-  // 1. Try Vondera live API
+  const cleanId = decodeURIComponent(id).trim();
+
+  // 1. Fetch directly from Vondera live API (no-store)
   try {
-    const res = await vonderaClient.products.getById(id);
-    if (res.data) {
-      return res.data as AuraProductDetail;
+    const liveDetail = await vonderaPublicGet<AuraProductDetail>(
+      `/products/single/${encodeURIComponent(cleanId)}`
+    );
+    if (liveDetail && liveDetail.product) {
+      return liveDetail;
     }
   } catch {
-    // Continue to local lookup
+    // Check if id was passed as a product slug
   }
 
-  // 2. Search local products
-  const normalizedId = decodeURIComponent(id).toLowerCase().trim();
-  let found = localProducts.find((p) => {
-    const pid = (p.id || "").toLowerCase();
-    const pslug = (p.slug || "").toLowerCase();
-    const psku = (p.sku || "").toLowerCase();
-    return (
-      pid === normalizedId ||
-      pslug === normalizedId ||
-      psku === normalizedId ||
-      `aura-${psku}` === normalizedId
-    );
-  });
+  // 2. If a slug was passed in the URL, resolve it against live Vondera products only
+  const liveProducts = await getMergedCatalogProducts();
+  const matchedBySlug = liveProducts.find(
+    (p) =>
+      p.id.toLowerCase() === cleanId.toLowerCase() ||
+      (p.slug && p.slug.toLowerCase() === cleanId.toLowerCase())
+  );
 
-  if (!found) {
-    for (const row of HOMEPAGE_SHOWCASE_ROWS) {
-      const sItem = row.items.find((it) => it.id.toLowerCase() === normalizedId);
-      if (sItem) {
-        found = {
-          id: sItem.id,
-          name: sItem.title,
-          price: sItem.price,
-          crossedPrice: sItem.oldPrice,
-          categoryId: sItem.categoryId === "ALL" ? "sofa" : sItem.categoryId,
-          categoryName: sItem.categoryName,
-          isAvailable: !sItem.stockOut,
-          mainImage: {
-            originalSize: sItem.image,
-            large: sItem.image,
-            smallSize: sItem.image,
-          },
-          images: [sItem.image],
-          description: sItem.variantText
-            ? `<div class="ql-code-block">Options: ${sItem.variantText}</div><p>${sItem.title} — crafted with premium materials and delivered across Egypt by Aura Furniture.</p>`
-            : `<p>${sItem.title} — crafted with premium materials and delivered across Egypt by Aura Furniture.</p>`,
-        };
-        break;
+  if (matchedBySlug) {
+    try {
+      const liveDetail = await vonderaPublicGet<AuraProductDetail>(
+        `/products/single/${encodeURIComponent(matchedBySlug.id)}`
+      );
+      if (liveDetail && liveDetail.product) {
+        return liveDetail;
       }
+    } catch {
+      // Fall through to build detail from live summary
     }
-  }
 
-  if (!found) {
-    return null;
-  }
+    const similar = liveProducts
+      .filter(
+        (p) =>
+          p.categoryId === matchedBySlug.categoryId &&
+          p.id !== matchedBySlug.id
+      )
+      .slice(0, 4);
 
-  const similar = localProducts
-    .filter((p) => p.categoryId === found.categoryId && p.id !== found.id)
-    .slice(0, 4);
-
-  const upsell = localProducts
-    .filter((p) => p.id !== found.id && p.categoryId !== found.categoryId)
-    .slice(0, 4);
-
-  return {
-    product: {
-      ...found,
+    return {
+      product: {
+        ...matchedBySlug,
+        simillerProducts: similar,
+      },
       simillerProducts: similar,
-    },
-    simillerProducts: similar,
-    upsell,
-  };
+      upsell: [],
+    };
+  }
+
+  return null;
 }
 
 export function normalizePaymentMethods(raw: Record<string, unknown> | null | undefined): VonderaPaymentMethod[] {

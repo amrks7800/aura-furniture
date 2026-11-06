@@ -327,11 +327,19 @@ export function matchesCategoryFilter(
   const pCatName = (product.categoryName || "").toLowerCase().trim();
   const pCatSlug = slugifyCategory(product.categoryName || product.categoryId);
 
+  const pSubId = (product.subCategoryId || "").toLowerCase().trim();
+  const pSubName = (product.subCategoryName || "").toLowerCase().trim();
+  const pSubSlug = slugifyCategory(
+    product.subCategoryName || product.subCategoryId
+  );
+
   if (
     pCatId === queryRaw ||
     pCatName === queryRaw ||
     pCatSlug === querySlug ||
-    pCatId === querySlug
+    pCatId === querySlug ||
+    (pSubId && (pSubId === queryRaw || pSubId === querySlug)) ||
+    (pSubName && (pSubName === queryRaw || pSubSlug === querySlug))
   ) {
     return true;
   }
@@ -339,12 +347,26 @@ export function matchesCategoryFilter(
   const aliases =
     CATEGORY_GROUP_ALIASES[queryRaw] || CATEGORY_GROUP_ALIASES[querySlug];
   if (aliases && aliases.length > 0) {
-    return aliases.some(
+    const matchedAlias = aliases.some(
       (alias) =>
         pCatId === alias ||
         pCatSlug === alias ||
-        pCatName === alias.replace(/-/g, " ")
+        pCatName === alias.replace(/-/g, " ") ||
+        pSubId === alias ||
+        pSubSlug === alias ||
+        pSubName === alias.replace(/-/g, " ")
     );
+    if (matchedAlias) return true;
+  }
+
+  // If the product only has a parent room category (e.g. "living room") and no subCategoryName set in Vondera,
+  // also match against the product title when filtering by a specific furniture type (e.g. "sofa")
+  if (!pSubName && querySlug) {
+    const singularKeyword = querySlug.replace(/s$/, "").replace(/-/g, " ");
+    const pTitle = `${product.name || ""} ${product.nameAr || ""}`.toLowerCase();
+    if (singularKeyword.length >= 3 && pTitle.includes(singularKeyword)) {
+      return true;
+    }
   }
 
   return false;
