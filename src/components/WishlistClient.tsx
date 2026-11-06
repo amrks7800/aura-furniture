@@ -4,8 +4,6 @@ import React, { useMemo } from "react";
 import Link from "next/link";
 import { useStore } from "@/context/StoreContext";
 import { ProductCard } from "@/components/ProductCard";
-import { ShowcaseCard } from "@/components/ShowcaseCarousel";
-import { HOMEPAGE_SHOWCASE_ROWS } from "@/data/homepage-showcase";
 import type { AuraProduct } from "@/lib/vondera";
 
 export function WishlistClient({ products }: { products: AuraProduct[] }) {
@@ -16,17 +14,7 @@ export function WishlistClient({ products }: { products: AuraProduct[] }) {
     [products, wishlist]
   );
 
-  const savedShowcaseItems = useMemo(() => {
-    const allShowcase = HOMEPAGE_SHOWCASE_ROWS.flatMap((r) => r.items);
-    const seen = new Set<string>();
-    return allShowcase.filter((item) => {
-      if (!wishlist.includes(item.id) || seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    });
-  }, [wishlist]);
-
-  const totalSaved = savedCatalogProducts.length + savedShowcaseItems.length;
+  const totalSaved = savedCatalogProducts.length;
 
   const clearAll = () => {
     wishlist.forEach((id) => toggleWishlist(id));
@@ -60,7 +48,7 @@ export function WishlistClient({ products }: { products: AuraProduct[] }) {
             <span className="text-[var(--fg)] font-medium">Saved Pieces</span>
           </div>
           <Link href="/products" className="chip">
-            Browse All 447 Products →
+            Browse All {products.length} Products →
           </Link>
         </div>
       </div>
@@ -106,9 +94,6 @@ export function WishlistClient({ products }: { products: AuraProduct[] }) {
             </div>
           ) : (
             <div className="mp-expanded-grid">
-              {savedShowcaseItems.map((item) => (
-                <ShowcaseCard key={item.id} item={item} />
-              ))}
               {savedCatalogProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}

@@ -340,25 +340,36 @@ const PUBLIC_API_BASE =
   "https://production.api.vondera.app/api/public";
 
 async function vonderaPublicGet<T = unknown>(endpoint: string): Promise<T | null> {
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${PUBLIC_API_BASE}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const urls = endpoint.startsWith("http")
+    ? [endpoint]
+    : [
+        `${ECOMMERCE_API_BASE}${cleanEndpoint}`,
+        `${PUBLIC_API_BASE}${cleanEndpoint}`,
+      ];
 
-  const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": API_KEY,
-      userid: "aura-storefront-live",
-      "x-store-domain": STORE_DOMAIN,
-      "x-country": "EG",
-    },
-    cache: "no-store",
-  });
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: buildVonderaEcommerceHeaders({
+          storefrontPath: "/",
+        }),
+        cache: "no-store",
+      });
 
-  if (!res.ok) return null;
-  const json = (await res.json()) as { data?: T } | null;
-  return json && "data" in json ? (json.data ?? null) : (json as T | null);
+      if (!res.ok) continue;
+      const json = (await res.json()) as { status?: number; data?: T } | null;
+      if (json && typeof json.status === "number" && json.status >= 400) {
+        continue;
+      }
+      return json && "data" in json ? (json.data ?? null) : (json as T | null);
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 export async function getStoreInfo(): Promise<AuraStoreInfo | null> {

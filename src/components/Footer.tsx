@@ -50,7 +50,7 @@ export function Footer({
               <h3>Explore</h3>
               <ul>
                 <li>
-                  <Link href="/products">All 447 Products</Link>
+                  <Link href="/products">All Products</Link>
                 </li>
                 <li>
                   <Link href="/products?category=sofa">Sofas &amp; Seating</Link>

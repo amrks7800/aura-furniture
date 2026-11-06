@@ -2,6 +2,9 @@ import React from "react";
 import { getCategories, getProducts } from "@/lib/vondera";
 import { ProductsDirectoryClient } from "@/components/ProductsDirectoryClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function ProductsPage({
   searchParams,
 }: {

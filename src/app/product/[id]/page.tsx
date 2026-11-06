@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { getProductById, getProducts } from "@/lib/vondera";
 import { ProductDetailClient } from "@/components/ProductDetailClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function ProductPage({
   params,
 }: {

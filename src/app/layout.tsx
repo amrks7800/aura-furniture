@@ -13,6 +13,9 @@ import { Navbar } from "@/components/Navbar";
 import { CartDrawer } from "@/components/CartDrawer";
 import { Footer } from "@/components/Footer";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
   subsets: ["latin"],

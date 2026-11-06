@@ -4,12 +4,10 @@ import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/context/StoreContext";
 import { ProductCard } from "@/components/ProductCard";
-import { ShowcaseCarouselBlock } from "@/components/ShowcaseCarousel";
 import {
   ROOM_CATEGORY_TREE,
   matchesCategoryFilter,
 } from "@/lib/catalog-utils";
-import { HOMEPAGE_SHOWCASE_ROWS } from "@/data/homepage-showcase";
 import type { AuraProduct } from "@/lib/vondera";
 
 const LIVING_COMPLETE_CARDS = [
@@ -260,10 +258,6 @@ export function RoomPageClient({
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const showcaseRows = config.showcaseRowIndices
-    .map((idx) => HOMEPAGE_SHOWCASE_ROWS[idx])
-    .filter(Boolean);
-
   return (
     <main>
       {/* Room Switcher Bar */}
@@ -308,7 +302,7 @@ export function RoomPageClient({
               </Link>
             ))}
             <Link href="/products" className="chip">
-              All 447 Products →
+              All {products.length} Products →
             </Link>
           </div>
         </div>
@@ -397,23 +391,6 @@ export function RoomPageClient({
                   />
                   <span className="living-complete-title">{card.title}</span>
                 </button>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Curated Showcase Rows for this Room */}
-      {showcaseRows.length > 0 && (
-        <section className="collections" style={{ paddingTop: "1.5rem" }}>
-          <div className="wrap">
-            <div className="mp-rows">
-              {showcaseRows.map((row) => (
-                <ShowcaseCarouselBlock
-                  key={row.id}
-                  row={row}
-                  searchQuery={searchQuery}
-                />
               ))}
             </div>
           </div>

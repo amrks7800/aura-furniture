@@ -33,7 +33,7 @@ export default function ShowroomPage() {
             </span>
           </div>
           <Link href="/products" className="chip">
-            Browse All 447 Products →
+            Browse All Products →
           </Link>
         </div>
       </div>

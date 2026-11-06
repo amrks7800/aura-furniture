@@ -2,6 +2,9 @@ import React from "react";
 import { getCategories, getProducts, getStoreInfo } from "@/lib/vondera";
 import { CatalogClient } from "@/components/CatalogClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function HomePage({
   searchParams,
 }: {
